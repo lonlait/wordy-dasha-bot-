@@ -113,7 +113,7 @@ async def on_text(m: Message):
         
         # Получаем детали первого слова
         meaning_ids = ([words[0].get("meaningIds", [])[0]]
-                      if words[0].get("meaningIds") else [])
+                       if words[0].get("meaningIds") else [])
         meanings = await skyeng.get_meanings(meaning_ids)
         
         if not meanings:
@@ -132,7 +132,8 @@ async def on_text(m: Message):
         
     except Exception as e:
         logger.error(f"Ошибка при поиске слова '{m.text}': {e}")
-        await m.answer("😅 Упс! Что-то пошло не так. Проблема с сетью или сервисом. Попробуй позже!")
+        await m.answer("😅 Упс! Что-то пошло не так. Проблема с сетью или сервисом. "
+                       "Попробуй позже!")
 
 # Обработчик кнопки "Произнести"
 @dp.callback_query(lambda c: c.data == "speak")
