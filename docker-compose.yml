@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  wordy-dasha:
+    build: .
+    container_name: wordy-dasha
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('https://api.telegram.org')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
