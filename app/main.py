@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
@@ -13,12 +15,20 @@ from .ui.renderers import render_word_card, render_examples, render_quiz_questio
 from .database import Database
 from .bot_settings import WELCOME_MESSAGE, HELP_MESSAGE
 
+# Загружаем переменные окружения
+load_dotenv()
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Получаем токен из переменных окружения
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не найден в переменных окружения!")
+
 # Инициализация
-bot = Bot(token="7992013270:AAEXOVnMcXe9MrDZ4-m3DwmEen2SgCB2ctU", 
+bot = Bot(token=BOT_TOKEN, 
           default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 skyeng = SkyengClient()
