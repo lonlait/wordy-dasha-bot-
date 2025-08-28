@@ -52,7 +52,7 @@ def render_examples(meaning: Dict) -> str:
 
 def render_quiz_question(word: str, options: List[str], correct: int) -> str:
     """Рендерит вопрос для квиза"""
-    question = f"<b>🎯 Как переводится слово «{word}»?</b>\n\n"
+    question = f"🎯 Как переводится слово «{word}»?\n\n"
     
     for i, option in enumerate(options):
         marker = "✅" if i == correct else "❌"

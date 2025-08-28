@@ -66,6 +66,24 @@ class Database:
             logger.error(f"Ошибка инициализации БД: {e}")
             raise
     
+    async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[Dict]:
+        """Получить пользователя по telegram_id"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                
+                cursor = await db.execute(
+                    "SELECT * FROM users WHERE telegram_id = ?",
+                    (telegram_id,)
+                )
+                user = await cursor.fetchone()
+                
+                return dict(user) if user else None
+                
+        except Exception as e:
+            logger.error(f"Ошибка получения пользователя: {e}")
+            return None
+
     async def get_or_create_user(self, telegram_id: int, username: str = None, first_name: str = None) -> Dict:
         """Получить или создать пользователя"""
         try:
@@ -138,7 +156,7 @@ class Database:
             logger.error(f"Ошибка добавления слова: {e}")
             raise
     
-    async def get_user_words(self, user_id: int, limit: int = 10) -> List[Dict]:
+    async def get_user_words(self, telegram_id: int, limit: int = 10) -> List[Dict]:
         """Получить слова пользователя"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
@@ -148,10 +166,11 @@ class Database:
                     SELECT w.word, w.translation, uw.mastered
                     FROM user_words uw
                     JOIN words w ON uw.word_id = w.id
-                    WHERE uw.user_id = ?
+                    JOIN users u ON uw.user_id = u.id
+                    WHERE u.telegram_id = ?
                     ORDER BY uw.added_at DESC
                     LIMIT ?
-                """, (user_id, limit))
+                """, (telegram_id, limit))
                 
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
@@ -160,58 +179,51 @@ class Database:
             logger.error(f"Ошибка получения слов пользователя: {e}")
             return []
     
-    async def get_user_stats(self, telegram_id: int) -> Dict:
+    async def get_user_stats(self, user_id: int) -> Dict:
         """Получить статистику пользователя"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 db.row_factory = aiosqlite.Row
                 
-                # Получаем пользователя
-                cursor = await db.execute(
-                    "SELECT id FROM users WHERE telegram_id = ?",
-                    (telegram_id,)
-                )
-                user = await cursor.fetchone()
+                # Получаем статистику
+                cursor = await db.execute("""
+                    SELECT 
+                        COALESCE(COUNT(uw.id), 0) as total_words,
+                        COALESCE(SUM(CASE WHEN uw.mastered THEN 1 ELSE 0 END), 0) as mastered_words,
+                        COALESCE(us.correct_answers, 0) as correct_answers,
+                        COALESCE(us.wrong_answers, 0) as wrong_answers
+                    FROM users u
+                    LEFT JOIN user_words uw ON u.id = uw.user_id
+                    LEFT JOIN user_stats us ON u.id = us.user_id
+                    WHERE u.id = ?
+                    GROUP BY u.id
+                """, (user_id,))
                 
-                if not user:
+                row = await cursor.fetchone()
+                
+                if row:
+                    total_words = row['total_words']
+                    mastered_words = row['mastered_words']
+                    correct_answers = row['correct_answers']
+                    wrong_answers = row['wrong_answers']
+                    
+                    accuracy = (correct_answers / (correct_answers + wrong_answers) * 100) if (correct_answers + wrong_answers) > 0 else 0
+                    
+                    return {
+                        'total_words': total_words,
+                        'mastered_words': mastered_words,
+                        'correct_answers': correct_answers,
+                        'wrong_answers': wrong_answers,
+                        'accuracy': round(accuracy, 1)
+                    }
+                else:
                     return {
                         'total_words': 0,
                         'mastered_words': 0,
                         'correct_answers': 0,
                         'wrong_answers': 0,
-                        'accuracy': 0
+                        'accuracy': 0.0
                     }
-                
-                # Получаем статистику
-                cursor = await db.execute("""
-                    SELECT 
-                        COUNT(uw.id) as total_words,
-                        SUM(CASE WHEN uw.mastered THEN 1 ELSE 0 END) as mastered_words,
-                        us.correct_answers,
-                        us.wrong_answers
-                    FROM user_words uw
-                    LEFT JOIN user_stats us ON uw.user_id = us.user_id
-                    WHERE uw.user_id = ?
-                """, (user['id'],))
-                
-                stats = await cursor.fetchone()
-                
-                total_words = stats['total_words'] or 0
-                mastered_words = stats['mastered_words'] or 0
-                correct_answers = stats['correct_answers'] or 0
-                wrong_answers = stats['wrong_answers'] or 0
-                
-                accuracy = 0
-                if correct_answers + wrong_answers > 0:
-                    accuracy = round((correct_answers / (correct_answers + wrong_answers)) * 100)
-                
-                return {
-                    'total_words': total_words,
-                    'mastered_words': mastered_words,
-                    'correct_answers': correct_answers,
-                    'wrong_answers': wrong_answers,
-                    'accuracy': accuracy
-                }
                 
         except Exception as e:
             logger.error(f"Ошибка получения статистики: {e}")
@@ -220,5 +232,5 @@ class Database:
                 'mastered_words': 0,
                 'correct_answers': 0,
                 'wrong_answers': 0,
-                'accuracy': 0
+                'accuracy': 0.0
             }

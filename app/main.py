@@ -60,7 +60,8 @@ async def on_help(m: Message):
 @dp.message(Command("stats"))
 async def on_stats(m: Message):
     try:
-        stats = await db.get_user_stats(m.from_user.id)
+        user = await db.get_or_create_user(m.from_user.id)
+        stats = await db.get_user_stats(user['id'])
         stats_text = f"""
 🎯 <b>Твоя статистика:</b>
 
@@ -123,8 +124,23 @@ async def on_text(m: Message):
         meaning = meanings[0]
         
         # Сохраняем слово в словарь пользователя
-        user = await db.get_or_create_user(m.from_user.id)
-        await db.add_word_to_user(user['id'], meaning)
+        try:
+            user = await db.get_or_create_user(m.from_user.id)
+            await db.add_word_to_user(user['id'], meaning)
+        except Exception as e:
+            if "UNIQUE constraint failed" in str(e):
+                # Пользователь уже существует, получаем его данные
+                user = await db.get_user_by_telegram_id(m.from_user.id)
+                if user:
+                    await db.add_word_to_user(user['id'], meaning)
+                else:
+                    logger.error(f"Не удалось получить пользователя: {e}")
+                    await m.answer("😔 Не удалось сохранить слово. Попробуй позже!")
+                    return
+            else:
+                logger.error(f"Ошибка при работе с пользователем: {e}")
+                await m.answer("😔 Не удалось сохранить слово. Попробуй позже!")
+                return
         
         # Отправляем карточку слова
         card_text = render_word_card(meaning)
@@ -174,8 +190,21 @@ async def on_examples(c: CallbackQuery):
 async def on_quiz(c: CallbackQuery):
     try:
         # Получаем слова пользователя для квиза
-        user = await db.get_or_create_user(c.from_user.id)
-        words = await db.get_user_words(user['id'], limit=5)
+        try:
+            user = await db.get_or_create_user(c.from_user.id)
+        except Exception as e:
+            if "UNIQUE constraint failed" in str(e):
+                # Пользователь уже существует, получаем его данные
+                user = await db.get_user_by_telegram_id(c.from_user.id)
+                if not user:
+                    await c.answer("😔 Не удалось получить пользователя!")
+                    return
+            else:
+                logger.error(f"Ошибка при работе с пользователем: {e}")
+                await c.answer("😔 Ошибка при работе с пользователем!")
+                return
+        
+        words = await db.get_user_words(c.from_user.id, limit=5)
         
         if len(words) < 2:
             await c.answer("🎯 Добавь больше слов в словарь для квиза!")
