@@ -42,57 +42,91 @@ async def on_start(m: Message):
         user = await db.get_or_create_user(
             m.from_user.id,
             m.from_user.username,
-            m.from_user.first_name
+            m.from_user.first_name,
+            m.from_user.last_name
         )
-        logger.info(f"Пользователь {user['telegram_id']} запустил бота")
-        
+        logger.info(f"Пользователь {m.from_user.id} запустил бота")
         await m.answer(WELCOME_MESSAGE)
     except Exception as e:
         logger.error(f"Ошибка в /start: {e}")
-        await m.answer("😅 Упс! Что-то пошло не так. Попробуй позже!")
+        await m.answer("😔 Не удалось инициализировать бота. Попробуй позже!")
 
 # Обработчик команды /help
 @dp.message(Command("help"))
 async def on_help(m: Message):
     await m.answer(HELP_MESSAGE)
 
+# Обработчик команды /search
+@dp.message(Command("search"))
+async def on_search(m: Message):
+    search_help = """🔍 <b>Как искать слова:</b>
+
+<b>Команда:</b> /search слово
+<b>Пример:</b> /search hello
+
+<b>Или просто напиши слово:</b>
+• hello
+• привет
+• run
+• бежать
+
+<b>Что ты получишь:</b>
+�� Перевод и транскрипцию
+🔊 Озвучку произношения
+📚 Примеры использования
+🎯 Мини-квиз для закрепления
+
+<b>Дополнительные команды:</b>
+/start - запустить бота
+/help - помощь
+/stats - твоя статистика
+/dictionary - твой словарь
+/quiz - начать квиз"""
+    
+    await m.answer(search_help)
+
 # Обработчик команды /stats
 @dp.message(Command("stats"))
 async def on_stats(m: Message):
     try:
-        user = await db.get_or_create_user(m.from_user.id)
+        user = await db.get_user_by_telegram_id(m.from_user.id)
+        if not user:
+            await m.answer("😔 Сначала запусти бота командой /start")
+            return
+        
         stats = await db.get_user_stats(user['id'])
-        stats_text = f"""
-🎯 <b>Твоя статистика:</b>
+        stats_text = f"""�� <b>Твоя статистика:</b>
 
-📚 <b>Слов в словаре:</b> {stats['total_words']}
-✅ <b>Изучено:</b> {stats['mastered_words']}
-🎯 <b>Правильных ответов:</b> {stats['correct_answers']}
-❌ <b>Ошибок:</b> {stats['wrong_answers']}
-📊 <b>Точность:</b> {stats['accuracy']}%
-        """.strip()
+📚 Слов в словаре: {stats['total_words']}
+✅ Изучено: {stats['learned_words']}
+�� Правильных ответов: {stats['correct_answers']}
+❌ Ошибок: {stats['wrong_answers']}
+�� Точность: {stats['accuracy']:.1f}%"""
         
         await m.answer(stats_text)
     except Exception as e:
         logger.error(f"Ошибка в /stats: {e}")
-        await m.answer("😅 Не удалось получить статистику. Попробуй позже!")
+        await m.answer("😅 Не удалось загрузить статистику. Попробуй позже!")
 
 # Обработчик команды /dictionary
 @dp.message(Command("dictionary"))
 async def on_dictionary(m: Message):
     try:
-        words = await db.get_user_words(m.from_user.id, limit=10)
-        
-        if not words:
-            await m.answer("📚 Твой словарь пока пуст. Начни искать слова!")
+        user = await db.get_user_by_telegram_id(m.from_user.id)
+        if not user:
+            await m.answer("😔 Сначала запусти бота командой /start")
             return
         
-        text = "📚 <b>Твои последние слова:</b>\n\n"
-        for i, word_data in enumerate(words, 1):
-            mastered = "✅" if word_data['mastered'] else "📖"
-            text += f"{i}. {mastered} <b>{word_data['word']}</b> — {word_data['translation']}\n"
+        words = await db.get_user_words(m.from_user.id, limit=10)
+        if not words:
+            await m.answer("�� Твой словарь пуст. Начни изучать слова!")
+            return
         
-        await m.answer(text)
+        words_text = "�� <b>Твой словарь:</b>\n\n"
+        for i, word in enumerate(words, 1):
+            words_text += f"{i}. <b>{word['word']}</b> — {word['translation']}\n"
+        
+        await m.answer(words_text)
     except Exception as e:
         logger.error(f"Ошибка в /dictionary: {e}")
         await m.answer("😅 Не удалось загрузить словарь. Попробуй позже!")
@@ -115,24 +149,33 @@ async def on_text(m: Message):
         # Получаем детали первого слова
         meaning_ids = ([words[0].get("meaningIds", [])[0]]
                        if words[0].get("meaningIds") else [])
+        logger.info(f"meaning_ids: {meaning_ids}")
+        
         meanings = await skyeng.get_meanings(meaning_ids)
+        logger.info(f"Получены meanings: {meanings}")
         
         if not meanings:
+            logger.warning("meanings пустой!")
             await m.answer("😔 Не удалось получить перевод. Попробуй позже!")
             return
         
         meaning = meanings[0]
+        logger.info(f"Выбранное meaning: {meaning}")
         
         # Сохраняем слово в словарь пользователя
         try:
+            logger.info("Начинаем сохранение в базу данных...")
             user = await db.get_or_create_user(m.from_user.id)
+            logger.info(f"Пользователь получен: {user}")
             await db.add_word_to_user(user['id'], meaning)
+            logger.info("Слово сохранено в базу данных")
         except Exception as e:
             if "UNIQUE constraint failed" in str(e):
                 # Пользователь уже существует, получаем его данные
                 user = await db.get_user_by_telegram_id(m.from_user.id)
                 if user:
                     await db.add_word_to_user(user['id'], meaning)
+                    logger.info("Слово сохранено в базу данных (пользователь уже существовал)")
                 else:
                     logger.error(f"Не удалось получить пользователя: {e}")
                     await m.answer("😔 Не удалось сохранить слово. Попробуй позже!")
@@ -143,8 +186,16 @@ async def on_text(m: Message):
                 return
         
         # Отправляем карточку слова
-        card_text = render_word_card(meaning)
-        await m.answer(card_text, reply_markup=kb_search_card())
+        try:
+            logger.info(f"Данные meaning: {meaning}")
+            card_text = render_word_card(meaning)
+            logger.info(f"Создана карточка: {card_text[:100]}...")
+            await m.answer(card_text, reply_markup=kb_search_card())
+            logger.info("Карточка отправлена успешно")
+        except Exception as e:
+            logger.error(f"Ошибка в render_word_card: {e}")
+            logger.error(f"Тип данных meaning: {type(meaning)}")
+            await m.answer("😔 Ошибка при создании карточки слова")
         
     except Exception as e:
         logger.error(f"Ошибка при поиске слова '{m.text}': {e}")
@@ -167,7 +218,7 @@ async def on_examples(c: CallbackQuery):
         # Ищем слово заново для получения примеров
         words = await skyeng.search_words(word)
         if not words:
-            await c.answer("😔 Примеры не найдены!")
+            await c.answer("�� Примеры не найдены!")
             return
         
         meaning_ids = [words[0].get("meaningIds", [])[0]] if words[0].get("meaningIds") else []
@@ -207,7 +258,7 @@ async def on_quiz(c: CallbackQuery):
         words = await db.get_user_words(c.from_user.id, limit=5)
         
         if len(words) < 2:
-            await c.answer("🎯 Добавь больше слов в словарь для квиза!")
+            await c.answer("�� Добавь больше слов в словарь для квиза!")
             return
         
         # Выбираем случайное слово
@@ -225,43 +276,56 @@ async def on_quiz(c: CallbackQuery):
         await c.answer()
         
     except Exception as e:
-        logger.error(f"Ошибка в квизе: {e}")
+        logger.error(f"Ошибка при создании квиза: {e}")
         await c.answer("😅 Ошибка при создании квиза!")
 
-# Обработчики квиза
+# Обработчик ответов на квиз
 @dp.callback_query(lambda c: c.data.startswith("quiz_"))
 async def on_quiz_answer(c: CallbackQuery):
     try:
-        if c.data == "quiz_correct":
-            await c.answer("✅ Правильно! Молодец!")
-        elif c.data == "quiz_incorrect":
-            await c.answer("❌ Неправильно! Попробуй еще раз!")
-        elif c.data == "quiz_next":
-            await c.answer("🔄 Новый вопрос!")
-            # Здесь можно запустить новый квиз
+        # Получаем данные из callback_data
+        data = c.data.split("_")
+        if len(data) != 3:
+            await c.answer("😅 Ошибка в данных квиза!")
+            return
         
-        await c.answer()
+        word = data[1]
+        answer_index = int(data[2])
+        
+        # Получаем правильный ответ из сообщения
+        message_text = c.message.text
+        lines = message_text.split('\n')
+        correct_index = -1
+        for i, line in enumerate(lines):
+            if line.startswith("✅"):
+                correct_index = i - 2  # -2 потому что первые две строки - заголовок
+                break
+        
+        if correct_index == -1:
+            await c.answer("😅 Не удалось определить правильный ответ!")
+            return
+        
+        # Проверяем ответ
+        if answer_index == correct_index:
+            await c.answer("🎉 Правильно!")
+            # Здесь можно добавить логику для увеличения счетчика правильных ответов
+        else:
+            await c.answer("❌ Неправильно!")
+            # Здесь можно добавить логику для увеличения счетчика неправильных ответов
         
     except Exception as e:
-        logger.error(f"Ошибка в обработке ответа квиза: {e}")
-        await c.answer("😅 Ошибка!")
+        logger.error(f"Ошибка при обработке ответа на квиз: {e}")
+        await c.answer("�� Ошибка при обработке ответа!")
 
-# Обработчик завершения работы
-async def on_shutdown():
-    await skyeng.aclose()
-    logger.info("Бот остановлен")
-
-# Главная функция
 async def main():
-    # Инициализируем базу данных
-    await db.init()
-    logger.info("База данных инициализирована")
-    
-    # Запускаем бота
+    """Основная функция запуска бота"""
     try:
+        logger.info("База данных инициализирована")
         await dp.start_polling(bot)
+    except Exception as e:
+        logger.error(f"Ошибка при запуске бота: {e}")
     finally:
-        await on_shutdown()
+        logger.info("Бот остановлен")
 
 if __name__ == "__main__":
     asyncio.run(main())
