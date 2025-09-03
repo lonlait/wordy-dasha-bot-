@@ -57,6 +57,43 @@ async def on_help(m: Message):
     await m.answer(HELP_MESSAGE)
 
 
+# Обработчик команды /quiz
+@dp.message(Command("quiz"))
+async def on_quiz_command(m: Message):
+    try:
+        # Получаем слова пользователя для квиза
+        user = await db.get_or_create_user(m.from_user.id)
+        words = await db.get_user_words(m.from_user.id, limit=5)
+        
+        if len(words) < 2:
+            await m.answer("😔 Добавь больше слов в словарь для квиза!")
+            return
+        
+        # Выбираем случайное слово
+        import random
+        quiz_word = random.choice(words)
+        
+        # Создаем варианты ответов
+        options = [quiz_word['translation']]
+        other_words = [w for w in words if w['id'] != quiz_word['id']]
+        options.extend([w['translation'] for w in random.sample(other_words, min(3, len(other_words)))])
+        random.shuffle(options)
+        
+        correct_index = options.index(quiz_word['translation'])
+        
+        # Создаем кнопки
+        builder = InlineKeyboardBuilder()
+        for i, option in enumerate(options):
+            builder.button(text=option, callback_data=f"quiz_answer_{i}")
+        builder.adjust(1)
+        
+        question_text = render_quiz_question(quiz_word['word'], options, correct_index)
+        await m.answer(question_text, reply_markup=builder.as_markup())
+        
+    except Exception as e:
+        logger.error(f"Ошибка в /quiz: {e}")
+        await m.answer("😅 Ошибка при создании квиза!")
+
 # Обработчик команды /search
 @dp.message(Command("search"))
 async def on_search(m: Message):
