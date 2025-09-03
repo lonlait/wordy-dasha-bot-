@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.client.default import DefaultBotProperties
 
 # Исправляем импорты - добавляем точку для относительных импортов
@@ -239,8 +240,31 @@ async def on_text(m: Message):
             meaning_with_word["word"] = words[0]["text"]  # Добавляем слово
             card_text = render_word_card(meaning_with_word)
             logger.info(f"Создана карточка: {card_text[:100]}...")
-            await m.answer(card_text, reply_markup=kb_search_card())
-            logger.info("Карточка отправлена успешно")
+            
+            # Проверяем наличие изображения
+            image_url = meaning.get("imageUrl")
+            if image_url:
+                # Добавляем протокол если его нет
+                if not image_url.startswith("http"):
+                    image_url = "https:" + image_url
+                
+                try:
+                    # Отправляем фото с подписью
+                    await m.answer_photo(
+                        photo=image_url,
+                        caption=card_text,
+                        reply_markup=kb_search_card()
+                    )
+                    logger.info("Карточка с изображением отправлена успешно")
+                except Exception as e:
+                    logger.warning(f"Не удалось отправить изображение: {e}")
+                    # Отправляем только текст
+                    await m.answer(card_text, reply_markup=kb_search_card())
+                    logger.info("Карточка без изображения отправлена успешно")
+            else:
+                # Отправляем только текст
+                await m.answer(card_text, reply_markup=kb_search_card())
+                logger.info("Карточка без изображения отправлена успешно")
         except Exception as e:
             logger.error(f"Ошибка в render_word_card: {e}")
             logger.error(f"Тип данных meaning: {type(meaning)}")

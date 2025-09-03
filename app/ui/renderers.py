@@ -9,12 +9,13 @@ def _safe(v, default="—"):
 def render_word_card(meaning: Dict) -> str:
     """
     meaning — элемент из /meanings
-    ожидаемые поля: text/word, transcription, translation.text, partOfSpeechCode
+    ожидаемые поля: text/word, transcription, translation.text, partOfSpeechCode, imageUrl
     """
     word = meaning.get("text") or meaning.get("word") or ""
     transcription = meaning.get("transcription")
     pos = meaning.get("partOfSpeechCode")
     translation = (meaning.get("translation") or {}).get("text")
+    note = (meaning.get("translation") or {}).get("note")
 
     title = f"<b>{escape(_safe(word))}</b>"
     if transcription:
@@ -23,6 +24,10 @@ def render_word_card(meaning: Dict) -> str:
         title += f" • {escape(pos)}"
     
     body = f"<b>Перевод:</b> {escape(_safe(translation))}"
+    
+    # Добавляем примечание, если есть
+    if note:
+        body += f" <i>({escape(note)})</i>"
 
     # дополнительные переводы, если есть
     alts: List[str] = []
