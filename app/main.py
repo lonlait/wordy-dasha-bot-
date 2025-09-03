@@ -100,7 +100,7 @@ async def on_stats(m: Message):
         stats_text = f"""�� <b>Твоя статистика:</b>
 
 📚 Слов в словаре: {stats['total_words']}
-✅ Изучено: {stats['learned_words']}
+✅ Изучено: {stats['mastered_words']}
 �� Правильных ответов: {stats['correct_answers']}
 ❌ Ошибок: {stats['wrong_answers']}
 �� Точность: {stats['accuracy']:.1f}%"""
