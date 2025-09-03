@@ -12,7 +12,7 @@ from aiogram.client.default import DefaultBotProperties
 from .skyeng_client import SkyengClient
 from .ui.keyboards import kb_search_card, kb_quiz
 from .ui.renderers import (
-    render_word_card, render_examples, render_quiz_question
+    render_word_card, render_examples, render_quiz_question, render_quiz_result
 )
 from .database import Database
 from .bot_settings import WELCOME_MESSAGE, HELP_MESSAGE
@@ -282,12 +282,62 @@ async def on_speak(c: CallbackQuery):
     await c.answer("🔊 Функция озвучки в разработке!")
 
 
+# Обработчик кнопки "Произнести"
+@dp.callback_query(lambda c: c.data == "pronounce")
+async def on_pronounce(c: CallbackQuery):
+    try:
+        # Получаем текст сообщения для поиска озвучки
+        message_text = c.message.text or c.message.caption or ""
+        if not message_text:
+            await c.answer("😔 Не удалось получить текст сообщения!")
+            return
+            
+        word = (message_text.split('\n')[0]
+                .replace('<b>', '')
+                .replace('</b>', '')
+                .split('[')[0]
+                .strip())
+        
+        # Ищем слово заново для получения озвучки
+        words = await skyeng.search_words(word)
+        if not words:
+            await c.answer("😔 Озвучка не найдена!")
+            return
+        
+        # API теперь возвращает meanings напрямую
+        meanings = words[0].get("meanings", [])
+        if not meanings:
+            await c.answer("😔 Озвучка не найдена!")
+            return
+        
+        meaning = meanings[0]
+        sound_url = meaning.get("soundUrl")
+        
+        if sound_url:
+            try:
+                # Отправляем аудио
+                await c.message.answer_voice(voice=sound_url)
+                await c.answer("🔊 Озвучка отправлена!")
+            except Exception as e:
+                logger.error(f"Ошибка при отправке озвучки: {e}")
+                await c.answer("😔 Не удалось отправить озвучку!")
+        else:
+            await c.answer("😔 Озвучка не найдена для этого слова!")
+        
+    except Exception as e:
+        logger.error(f"Ошибка при получении озвучки: {e}")
+        await c.answer("😅 Ошибка при загрузке озвучки!")
+
 # Обработчик кнопки "Примеры"
 @dp.callback_query(lambda c: c.data == "examples")
 async def on_examples(c: CallbackQuery):
     try:
         # Получаем текст сообщения для поиска примеров
-        message_text = c.message.text
+        message_text = c.message.text or c.message.caption or ""
+        if not message_text:
+            await c.answer("😔 Не удалось получить текст сообщения!")
+            return
+            
         word = (message_text.split('\n')[0]
                 .replace('<b>', '')
                 .replace('</b>', '')

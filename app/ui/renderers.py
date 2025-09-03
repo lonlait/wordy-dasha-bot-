@@ -52,7 +52,26 @@ def render_quiz_question(word: str, options: List[str], correct: int) -> str:
     question = f"🎯 Как переводится слово «{word}»?\n\n"
     
     for i, option in enumerate(options):
-        marker = "✅" if i == correct else "❌"
-        question += f"{marker} {escape(option)}\n"
+        question += f"{i+1}. {escape(option)}\n"
     
     return question
+
+def render_quiz_result(word: str, options: List[str], correct: int, user_answer: int) -> str:
+    """Рендерит результат квиза"""
+    result = f"🎯 Как переводится слово «{word}»?\n\n"
+    
+    for i, option in enumerate(options):
+        if i == correct:
+            marker = "✅"
+        elif i == user_answer and i != correct:
+            marker = "❌"
+        else:
+            marker = "⚪"
+        result += f"{marker} {escape(option)}\n"
+    
+    if user_answer == correct:
+        result += "\n🎉 Правильно!"
+    else:
+        result += f"\n😔 Неправильно! Правильный ответ: {escape(options[correct])}"
+    
+    return result
