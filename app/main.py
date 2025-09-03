@@ -257,9 +257,12 @@ async def on_examples(c: CallbackQuery):
 @dp.callback_query(lambda c: c.data == "quiz")
 async def on_quiz(c: CallbackQuery):
     try:
+        logger.info(f"Начинаем квиз для пользователя {c.from_user.id}")
+        
         # Получаем слова пользователя для квиза
         try:
             user = await db.get_or_create_user(c.from_user.id)
+            logger.info(f"Пользователь получен: {user}")
         except Exception as e:
             if "UNIQUE constraint failed" in str(e):
                 # Пользователь уже существует, получаем его данные
@@ -273,6 +276,7 @@ async def on_quiz(c: CallbackQuery):
                 return
         
         words = await db.get_user_words(c.from_user.id, limit=5)
+        logger.info(f"Получены слова для квиза: {len(words)} слов")
         
         if len(words) < 2:
             await c.answer("�� Добавь больше слов в словарь для квиза!")
