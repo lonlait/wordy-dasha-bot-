@@ -40,7 +40,7 @@ db = Database()
 async def on_start(m: Message):
     try:
         # Создаем или получаем пользователя
-        await db.get_or_create_user(
+        user = await db.get_or_create_user(
             m.from_user.id,
             m.from_user.username,
             m.from_user.first_name,
@@ -241,6 +241,9 @@ async def on_examples(c: CallbackQuery):
         if not meanings:
             await c.answer("😔 Не удалось загрузить примеры!")
             return
+        
+        # Логируем структуру meaning для отладки
+        logger.info(f"Структура meaning для примеров: {meanings[0]}")
         
         examples_text = render_examples(meanings[0])
         await c.message.answer(examples_text)
