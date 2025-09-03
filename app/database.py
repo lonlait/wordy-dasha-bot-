@@ -135,7 +135,7 @@ class Database:
                 cursor = await db.execute(
                     "INSERT INTO words (word, translation, transcription, examples) VALUES (?, ?, ?, ?)",
                     (
-                        meaning.get('text', ''),
+                        meaning.get('word', meaning.get('text', '')),
                         meaning.get('translation', {}).get('text', ''),
                         meaning.get('transcription', ''),
                         str(meaning.get('examples', []))
@@ -163,7 +163,7 @@ class Database:
                 db.row_factory = aiosqlite.Row
                 
                 cursor = await db.execute("""
-                    SELECT w.word, w.translation, uw.mastered
+                    SELECT w.id, w.word, w.translation, uw.mastered
                     FROM user_words uw
                     JOIN words w ON uw.word_id = w.id
                     JOIN users u ON uw.user_id = u.id

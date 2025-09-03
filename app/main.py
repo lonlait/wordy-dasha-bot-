@@ -206,7 +206,12 @@ async def on_text(m: Message):
             logger.info("Начинаем сохранение в базу данных...")
             user = await db.get_or_create_user(m.from_user.id)
             logger.info(f"Пользователь получен: {user}")
-            await db.add_word_to_user(user['id'], meaning)
+            
+            # Добавляем слово из родительского объекта
+            meaning_with_word = meaning.copy()
+            meaning_with_word["word"] = words[0]["text"]  # Добавляем английское слово
+            
+            await db.add_word_to_user(user['id'], meaning_with_word)
             logger.info("Слово сохранено в базу данных")
         except Exception as e:
             if "UNIQUE constraint failed" in str(e):
