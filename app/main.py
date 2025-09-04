@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -506,8 +506,9 @@ async def on_quiz_answer(c: CallbackQuery):
         await c.answer("�� Ошибка при обработке ответа!")
 
 # Обработчик кнопки "Следующий раунд"
-@dp.callback_query(lambda c: c.data == "quiz_next")
+@dp.callback_query(F.data == "quiz_next")
 async def on_quiz_next(c: CallbackQuery):
+    logger.info("=== ОБРАБОТЧИК QUIZ_NEXT ВЫЗВАН ===")
     try:
         logger.info(f"Получен запрос на следующий раунд квиза от пользователя {c.from_user.id}")
         logger.info(f"Callback data: {c.data}")
