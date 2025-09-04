@@ -292,12 +292,6 @@ async def on_text(m: Message):
 
 # Обработчик кнопки "Произнести"
 @dp.callback_query(lambda c: c.data == "speak")
-async def on_speak(c: CallbackQuery):
-    await c.answer("🔊 Функция озвучки в разработке!")
-
-
-# Обработчик кнопки "Произнести"
-@dp.callback_query(lambda c: c.data == "pronounce")
 async def on_pronounce(c: CallbackQuery):
     try:
         # Получаем текст сообщения для поиска озвучки
@@ -513,6 +507,7 @@ async def on_quiz_answer(c: CallbackQuery):
 @dp.callback_query(lambda c: c.data == "quiz_next")
 async def on_quiz_next(c: CallbackQuery):
     try:
+        logger.info(f"Получен запрос на следующий раунд квиза от пользователя {c.from_user.id}")
         # Получаем слова пользователя для квиза
         user = await db.get_or_create_user(c.from_user.id)
         words = await db.get_user_words(c.from_user.id, limit=5)
