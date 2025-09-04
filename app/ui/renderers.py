@@ -54,14 +54,21 @@ def render_examples(meaning: Dict) -> str:
     lines = []
     for i, ex in enumerate(examples[:5]):
         en = ex.get("text") or ""
-        ru = (ex.get("translation") or {}).get("text") or ""
         
-        # Если перевода нет, попробуем другие варианты
+        # Пробуем разные варианты получения перевода
+        ru = ""
+        if ex.get("translation"):
+            if isinstance(ex["translation"], dict):
+                ru = ex["translation"].get("text") or ""
+            else:
+                ru = str(ex["translation"])
+        
+        # Если перевода нет, попробуем другие поля
         if not ru:
-            ru = ex.get("translation") or ""
+            ru = ex.get("translationText") or ex.get("translation_text") or ""
         
         # Если все еще нет перевода, показываем только английский
-        if ru:
+        if ru and ru.strip():
             lines.append(f"<b>{i+1}.</b> {escape(en)}\n   — {escape(ru)}")
         else:
             lines.append(f"<b>{i+1}.</b> {escape(en)}")
