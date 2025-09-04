@@ -160,8 +160,7 @@ async def on_dictionary(m: Message):
         
         words = await db.get_user_words(m.from_user.id, limit=10)
         if not words:
-            await m.answer("
-            📚 Твой словарь пуст. Начни изучать слова!")
+            await m.answer("📚 Твой словарь пуст. Начни изучать слова!")
             return
         
         words_text = "📚 <b>Твой словарь:</b>\n\n"
