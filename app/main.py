@@ -495,6 +495,8 @@ async def on_quiz_answer(c: CallbackQuery):
         builder.button(text="🔄 Следующий раунд", callback_data="quiz_next")
         builder.adjust(1)
         
+        logger.info(f"Создана кнопка 'Следующий раунд' с callback_data: quiz_next")
+        
         # Отправляем результат с кнопкой
         await c.message.answer(result_text, reply_markup=builder.as_markup())
         await c.answer()
@@ -508,9 +510,12 @@ async def on_quiz_answer(c: CallbackQuery):
 async def on_quiz_next(c: CallbackQuery):
     try:
         logger.info(f"Получен запрос на следующий раунд квиза от пользователя {c.from_user.id}")
+        logger.info(f"Callback data: {c.data}")
+        
         # Получаем слова пользователя для квиза
         user = await db.get_or_create_user(c.from_user.id)
         words = await db.get_user_words(c.from_user.id, limit=5)
+        logger.info(f"Найдено слов для квиза: {len(words)}")
         
         if len(words) < 2:
             await c.answer("😔 Добавь больше слов в словарь для квиза!")
@@ -538,14 +543,8 @@ async def on_quiz_next(c: CallbackQuery):
         logger.info(f"Создаем вопрос квиза для слова: '{quiz_word['word']}'")
         question_text = render_quiz_question(quiz_word['word'], options, correct_index)
         
-        # Редактируем существующее сообщение вместо отправки нового
-        try:
-            await c.message.edit_text(question_text, reply_markup=builder.as_markup())
-        except Exception as edit_error:
-            logger.warning(f"Не удалось отредактировать сообщение: {edit_error}")
-            # Если не удалось отредактировать, отправляем новое
-            await c.message.answer(question_text, reply_markup=builder.as_markup())
-        
+        # Отправляем новое сообщение с квизом
+        await c.message.answer(question_text, reply_markup=builder.as_markup())
         await c.answer()
         
     except Exception as e:
