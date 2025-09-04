@@ -135,13 +135,13 @@ async def on_stats(m: Message):
             return
         
         stats = await db.get_user_stats(user['id'])
-        stats_text = f"""�� <b>Твоя статистика:</b>
+        stats_text = f"""��📊 <b>Твоя статистика:</b>
 
 📚 Слов в словаре: {stats['total_words']}
 ✅ Изучено: {stats['mastered_words']}
-�� Правильных ответов: {stats['correct_answers']}
+��🎯 Правильных ответов: {stats['correct_answers']}
 ❌ Ошибок: {stats['wrong_answers']}
-�� Точность: {stats['accuracy']:.1f}%"""
+��📈 Точность: {stats['accuracy']:.1f}%"""
         
         await m.answer(stats_text)
     except Exception as e:
@@ -160,10 +160,10 @@ async def on_dictionary(m: Message):
         
         words = await db.get_user_words(m.from_user.id, limit=10)
         if not words:
-            await m.answer("�� Твой словарь пуст. Начни изучать слова!")
+            await m.answer("��📚 Твой словарь пуст. Начни изучать слова!")
             return
         
-        words_text = "�� <b>Твой словарь:</b>\n\n"
+        words_text = "��📚 <b>Твой словарь:</b>\n\n"
         for i, word in enumerate(words, 1):
             words_text += (f"{i}. <b>{word['word']}</b> — "
                           f"{word['translation']}\n")
@@ -432,6 +432,7 @@ async def on_quiz(c: CallbackQuery):
             builder.button(text=option, callback_data=f"quiz_answer_{i}_{correct_index}")
         builder.adjust(1)
         
+        logger.info(f"Создаем вопрос квиза для слова: '{quiz_word['word']}'")
         question_text = render_quiz_question(quiz_word['word'], options, correct_index)
         await c.message.answer(question_text, reply_markup=builder.as_markup())
         await c.answer()
