@@ -416,6 +416,7 @@ async def on_quiz(c: CallbackQuery):
         # Выбираем случайное слово
         import random
         quiz_word = random.choice(words)
+        logger.info(f"Выбранное слово для квиза: {quiz_word}")
         
         # Создаем варианты ответов
         all_words = [w['translation'] for w in words
