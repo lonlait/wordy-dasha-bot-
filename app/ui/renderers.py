@@ -46,11 +46,25 @@ def render_examples(meaning: Dict) -> str:
     if not examples:
         return "😔 Примеры не найдены для этого слова."
     
+    # Логируем структуру примера для отладки
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Структура примера: {examples[0] if examples else 'Нет примеров'}")
+    
     lines = []
     for i, ex in enumerate(examples[:5]):
         en = ex.get("text") or ""
         ru = (ex.get("translation") or {}).get("text") or ""
-        lines.append(f"<b>{i+1}.</b> {escape(en)}\n   — {escape(ru)}")
+        
+        # Если перевода нет, попробуем другие варианты
+        if not ru:
+            ru = ex.get("translation") or ""
+        
+        # Если все еще нет перевода, показываем только английский
+        if ru:
+            lines.append(f"<b>{i+1}.</b> {escape(en)}\n   — {escape(ru)}")
+        else:
+            lines.append(f"<b>{i+1}.</b> {escape(en)}")
     
     return "📚 <b>Примеры употребления:</b>\n\n" + "\n\n".join(lines)
 
