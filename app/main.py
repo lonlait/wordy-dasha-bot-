@@ -85,7 +85,7 @@ async def on_quiz_command(m: Message):
         # Создаем кнопки
         builder = InlineKeyboardBuilder()
         for i, option in enumerate(options):
-            builder.button(text=option, callback_data=f"quiz_answer_{i}")
+            builder.button(text=option, callback_data=f"quiz_answer_{i}_{correct_index}")
         builder.adjust(1)
         
         question_text = render_quiz_question(quiz_word['word'], options, correct_index)
@@ -425,9 +425,14 @@ async def on_quiz(c: CallbackQuery):
         random.shuffle(options)
         correct_index = options.index(quiz_word['translation'])
         
-        question_text = render_quiz_question(quiz_word['word'], options,
-                                           correct_index)
-        await c.message.answer(question_text, reply_markup=kb_quiz())
+        # Создаем кнопки для квиза
+        builder = InlineKeyboardBuilder()
+        for i, option in enumerate(options):
+            builder.button(text=option, callback_data=f"quiz_answer_{i}_{correct_index}")
+        builder.adjust(1)
+        
+        question_text = render_quiz_question(quiz_word['word'], options, correct_index)
+        await c.message.answer(question_text, reply_markup=builder.as_markup())
         await c.answer()
         
     except Exception as e:
@@ -441,25 +446,12 @@ async def on_quiz_answer(c: CallbackQuery):
     try:
         # Получаем данные из callback_data
         data = c.data.split("_")
-        if len(data) != 3:
+        if len(data) != 4:
             await c.answer("😅 Ошибка в данных квиза!")
             return
         
         answer_index = int(data[2])
-        
-        # Получаем правильный ответ из сообщения
-        message_text = c.message.text
-        lines = message_text.split('\n')
-        correct_index = -1
-        for i, line in enumerate(lines):
-            if line.startswith("✅"):
-                # -2 потому что первые две строки - заголовок
-                correct_index = i - 2
-                break
-        
-        if correct_index == -1:
-            await c.answer("😅 Не удалось определить правильный ответ!")
-            return
+        correct_index = int(data[3])
         
         # Проверяем ответ
         if answer_index == correct_index:
