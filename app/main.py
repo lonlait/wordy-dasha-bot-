@@ -240,6 +240,7 @@ async def on_text(m: Message):
             meaning_with_word["word"] = words[0]["text"]  # Добавляем слово
             card_text = render_word_card(meaning_with_word)
             logger.info(f"Создана карточка: {card_text[:100]}...")
+
             
             # Проверяем наличие изображения
             image_url = meaning.get("imageUrl")
@@ -350,19 +351,33 @@ async def on_examples(c: CallbackQuery):
             await c.answer("�� Примеры не найдены!")
             return
         
-        # API теперь возвращает meanings напрямую
+        # Получаем meanings из первого слова
         meanings = words[0].get("meanings", [])
-        
         if not meanings:
             await c.answer("😔 Не удалось загрузить примеры!")
             return
         
-        # Логируем структуру meaning для отладки
-        logger.info(f"Структура meaning для примеров: {meanings[0]}")
+        # Получаем детальную информацию через API meanings
+        meaning_ids = [meaning["id"] for meaning in meanings[:3]]  # Берем первые 3 значения
+        detailed_meanings = await skyeng.get_meanings(meaning_ids)
         
-        examples_text = render_examples(meanings[0])
-        await c.message.answer(examples_text)
-        await c.answer()
+        if not detailed_meanings:
+            await c.answer("😔 Не удалось загрузить примеры!")
+            return
+        
+        # Ищем meaning с примерами
+        examples_found = False
+        for detailed_meaning in detailed_meanings:
+            examples = detailed_meaning.get("examples", [])
+            if examples:
+                examples_text = render_examples(detailed_meaning)
+                await c.message.answer(examples_text)
+                await c.answer()
+                examples_found = True
+                break
+        
+        if not examples_found:
+            await c.answer("😔 Примеры не найдены для этого слова!")
         
     except Exception as e:
         logger.error(f"Ошибка при получении примеров: {e}")

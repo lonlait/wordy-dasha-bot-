@@ -42,9 +42,17 @@ def render_word_card(meaning: Dict) -> str:
 
 
 def render_examples(meaning: Dict) -> str:
-    # В новом API Skyeng примеры не приходят в meaning
-    # Нужно получать их отдельно через API meanings
-    return "😔 Примеры не найдены для этого слова.\n\nВ новом API Skyeng примеры нужно получать отдельно."
+    examples = meaning.get("examples") or []
+    if not examples:
+        return "😔 Примеры не найдены для этого слова."
+    
+    lines = []
+    for i, ex in enumerate(examples[:5]):
+        en = ex.get("text") or ""
+        ru = (ex.get("translation") or {}).get("text") or ""
+        lines.append(f"<b>{i+1}.</b> {escape(en)}\n   — {escape(ru)}")
+    
+    return "📚 <b>Примеры употребления:</b>\n\n" + "\n\n".join(lines)
 
 
 def render_quiz_question(word: str, options: List[str], correct: int) -> str:
