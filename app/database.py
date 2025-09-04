@@ -234,3 +234,40 @@ class Database:
                 'wrong_answers': 0,
                 'accuracy': 0.0
             }
+    
+    async def update_user_stats(self, user_id: int, correct_answers: int = 0, wrong_answers: int = 0):
+        """Обновить статистику пользователя"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                # Проверяем, есть ли запись статистики
+                cursor = await db.execute(
+                    "SELECT id FROM user_stats WHERE user_id = ?",
+                    (user_id,)
+                )
+                stats_record = await cursor.fetchone()
+                
+                if stats_record:
+                    # Обновляем существующую запись
+                    if correct_answers > 0:
+                        await db.execute(
+                            "UPDATE user_stats SET correct_answers = correct_answers + ? WHERE user_id = ?",
+                            (correct_answers, user_id)
+                        )
+                    if wrong_answers > 0:
+                        await db.execute(
+                            "UPDATE user_stats SET wrong_answers = wrong_answers + ? WHERE user_id = ?",
+                            (wrong_answers, user_id)
+                        )
+                else:
+                    # Создаем новую запись
+                    await db.execute(
+                        "INSERT INTO user_stats (user_id, correct_answers, wrong_answers) VALUES (?, ?, ?)",
+                        (user_id, correct_answers, wrong_answers)
+                    )
+                
+                await db.commit()
+                logger.info(f"Статистика пользователя {user_id} обновлена: +{correct_answers} правильных, +{wrong_answers} неправильных")
+                
+        except Exception as e:
+            logger.error(f"Ошибка обновления статистики: {e}")
+            raise
