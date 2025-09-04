@@ -55,24 +55,26 @@ def render_examples(meaning: Dict) -> str:
     for i, ex in enumerate(examples[:5]):
         en = ex.get("text") or ""
         
-        # Пробуем разные варианты получения перевода
+        # Пробуем разные варианты получения перевода ПРИМЕРА (не слова)
         ru = ""
+        
+        # Сначала пробуем получить перевод примера из разных полей
         if ex.get("translation"):
             if isinstance(ex["translation"], dict):
                 ru = ex["translation"].get("text") or ""
             else:
                 ru = str(ex["translation"])
         
-        # Если перевода нет, попробуем другие поля
+        # Если перевода нет, попробуем другие поля для перевода примера
         if not ru:
             ru = ex.get("translationText") or ex.get("translation_text") or ""
         
-        # Если все еще нет перевода, попробуем получить из meaning
-        if not ru and meaning.get("translation"):
-            if isinstance(meaning["translation"], dict):
-                ru = meaning["translation"].get("text") or ""
-            else:
-                ru = str(meaning["translation"])
+        # Если все еще нет перевода примера, попробуем другие возможные поля
+        if not ru:
+            ru = ex.get("translation_text") or ex.get("translationText") or ""
+        
+        # Логируем, что мы нашли для отладки
+        logger.info(f"Пример: '{en}' -> Перевод: '{ru}'")
         
         # Форматируем пример с переводом
         if ru and ru.strip():
