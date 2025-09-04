@@ -175,7 +175,13 @@ async def on_dictionary(m: Message):
         if total_words > 20:
             words_text += f"\n... и ещё {total_words - 20} слов"
         
-        await m.answer(words_text)
+        # Добавляем кнопку озвучки
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        builder = InlineKeyboardBuilder()
+        builder.button(text="🔊 Произнести случайное слово", callback_data="speak_random")
+        builder.adjust(1)
+        
+        await m.answer(words_text, reply_markup=builder.as_markup())
     except Exception as e:
         logger.error(f"Ошибка в /dictionary: {e}")
         await m.answer("😅 Не удалось загрузить словарь. Попробуй позже!")
@@ -470,19 +476,129 @@ async def on_quiz_answer(c: CallbackQuery):
             await c.answer("😔 Не удалось получить пользователя!")
             return
         
+        # Получаем варианты ответов из сообщения
+        message_text = c.message.text or ""
+        lines = message_text.split('\n')
+        options = []
+        for line in lines[2:]:  # Пропускаем заголовок и пустую строку
+            if line.strip() and line.strip()[0].isdigit():
+                option = line.strip().split('.', 1)[1].strip()
+                options.append(option)
+        
         # Проверяем ответ
         if answer_index == correct_index:
-            await c.answer("🎉 Правильно!")
+            result_text = "🎉 Правильно!"
             # Увеличиваем счетчик правильных ответов
             await db.update_user_stats(user['id'], correct_answers=1)
         else:
-            await c.answer("❌ Неправильно!")
+            result_text = f"❌ Неправильно! Правильный ответ: {options[correct_index]}"
             # Увеличиваем счетчик неправильных ответов
             await db.update_user_stats(user['id'], wrong_answers=1)
+        
+        # Создаем кнопку для следующего раунда
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        builder = InlineKeyboardBuilder()
+        builder.button(text="🔄 Следующий раунд", callback_data="quiz_next")
+        builder.adjust(1)
+        
+        # Отправляем результат с кнопкой
+        await c.message.answer(result_text, reply_markup=builder.as_markup())
+        await c.answer()
         
     except Exception as e:
         logger.error(f"Ошибка при обработке ответа на квиз: {e}")
         await c.answer("�� Ошибка при обработке ответа!")
+
+# Обработчик кнопки "Следующий раунд"
+@dp.callback_query(lambda c: c.data == "quiz_next")
+async def on_quiz_next(c: CallbackQuery):
+    try:
+        # Получаем слова пользователя для квиза
+        user = await db.get_or_create_user(c.from_user.id)
+        words = await db.get_user_words(c.from_user.id, limit=5)
+        
+        if len(words) < 2:
+            await c.answer("😔 Добавь больше слов в словарь для квиза!")
+            return
+        
+        # Выбираем случайное слово
+        import random
+        quiz_word = random.choice(words)
+        logger.info(f"Выбранное слово для квиза: {quiz_word}")
+        
+        # Создаем варианты ответов
+        all_words = [w['translation'] for w in words
+                     if w['translation'] != quiz_word['translation']]
+        options = ([quiz_word['translation']] +
+                  random.sample(all_words, min(3, len(all_words))))
+        random.shuffle(options)
+        correct_index = options.index(quiz_word['translation'])
+        
+        # Создаем кнопки для квиза
+        builder = InlineKeyboardBuilder()
+        for i, option in enumerate(options):
+            builder.button(text=option, callback_data=f"quiz_answer_{i}_{correct_index}")
+        builder.adjust(1)
+        
+        logger.info(f"Создаем вопрос квиза для слова: '{quiz_word['word']}'")
+        question_text = render_quiz_question(quiz_word['word'], options, correct_index)
+        await c.message.answer(question_text, reply_markup=builder.as_markup())
+        await c.answer()
+        
+    except Exception as e:
+        logger.error(f"Ошибка при создании следующего квиза: {e}")
+        await c.answer("😅 Ошибка при создании квиза!")
+
+
+# Обработчик кнопки "Произнести случайное слово"
+@dp.callback_query(lambda c: c.data == "speak_random")
+async def on_speak_random(c: CallbackQuery):
+    try:
+        # Получаем слова пользователя
+        user = await db.get_or_create_user(c.from_user.id)
+        words = await db.get_user_words(c.from_user.id, limit=10)
+        
+        if not words:
+            await c.answer("😔 Словарь пуст!")
+            return
+        
+        # Выбираем случайное слово
+        import random
+        random_word = random.choice(words)
+        word_text = random_word['word']
+        
+        logger.info(f"Ищем озвучку для случайного слова: '{word_text}'")
+        
+        # Ищем слово в API для получения озвучки
+        words_api = await skyeng.search_words(word_text)
+        if not words_api:
+            await c.answer("😔 Озвучка не найдена!")
+            return
+        
+        # Получаем meanings
+        meanings = words_api[0].get("meanings", [])
+        if not meanings:
+            await c.answer("😔 Озвучка не найдена!")
+            return
+        
+        meaning = meanings[0]
+        sound_url = meaning.get("soundUrl")
+        logger.info(f"Найден soundUrl: {sound_url}")
+        
+        if sound_url:
+            try:
+                # Отправляем аудио
+                await c.message.answer_voice(voice=sound_url)
+                await c.answer(f"🔊 Произношение слова: {word_text}")
+            except Exception as e:
+                logger.error(f"Ошибка при отправке озвучки: {e}")
+                await c.answer("😔 Не удалось отправить озвучку!")
+        else:
+            await c.answer("😔 Озвучка не найдена для этого слова!")
+        
+    except Exception as e:
+        logger.error(f"Ошибка при получении озвучки случайного слова: {e}")
+        await c.answer("😅 Ошибка при загрузке озвучки!")
 
 async def main():
     """Основная функция запуска бота"""

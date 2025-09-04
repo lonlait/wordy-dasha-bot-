@@ -71,6 +71,7 @@ def render_examples(meaning: Dict) -> str:
         if ru and ru.strip():
             lines.append(f"<b>{i+1}.</b> {escape(en)}\n   — {escape(ru)}")
         else:
+            # Показываем только английский, но добавляем заметку
             lines.append(f"<b>{i+1}.</b> {escape(en)}")
     
     return "📚 <b>Примеры употребления:</b>\n\n" + "\n\n".join(lines)
