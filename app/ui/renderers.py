@@ -67,11 +67,18 @@ def render_examples(meaning: Dict) -> str:
         if not ru:
             ru = ex.get("translationText") or ex.get("translation_text") or ""
         
-        # Если все еще нет перевода, показываем только английский
+        # Если все еще нет перевода, попробуем получить из meaning
+        if not ru and meaning.get("translation"):
+            if isinstance(meaning["translation"], dict):
+                ru = meaning["translation"].get("text") or ""
+            else:
+                ru = str(meaning["translation"])
+        
+        # Форматируем пример с переводом
         if ru and ru.strip():
-            lines.append(f"<b>{i+1}.</b> {escape(en)}\n   — {escape(ru)}")
+            lines.append(f"<b>{i+1}.</b> {escape(en)}\n   <i>— {escape(ru)}</i>")
         else:
-            # Показываем только английский, но добавляем заметку
+            # Показываем только английский
             lines.append(f"<b>{i+1}.</b> {escape(en)}")
     
     return "📚 <b>Примеры употребления:</b>\n\n" + "\n\n".join(lines)

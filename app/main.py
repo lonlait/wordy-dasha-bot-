@@ -537,7 +537,15 @@ async def on_quiz_next(c: CallbackQuery):
         
         logger.info(f"Создаем вопрос квиза для слова: '{quiz_word['word']}'")
         question_text = render_quiz_question(quiz_word['word'], options, correct_index)
-        await c.message.answer(question_text, reply_markup=builder.as_markup())
+        
+        # Редактируем существующее сообщение вместо отправки нового
+        try:
+            await c.message.edit_text(question_text, reply_markup=builder.as_markup())
+        except Exception as edit_error:
+            logger.warning(f"Не удалось отредактировать сообщение: {edit_error}")
+            # Если не удалось отредактировать, отправляем новое
+            await c.message.answer(question_text, reply_markup=builder.as_markup())
+        
         await c.answer()
         
     except Exception as e:
