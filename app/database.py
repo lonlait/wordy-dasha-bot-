@@ -271,3 +271,21 @@ class Database:
         except Exception as e:
             logger.error(f"Ошибка обновления статистики: {e}")
             raise
+    
+    async def get_user_words_count(self, telegram_id: int) -> int:
+        """Получить общее количество слов пользователя"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute("""
+                    SELECT COUNT(*)
+                    FROM user_words uw
+                    JOIN users u ON uw.user_id = u.id
+                    WHERE u.telegram_id = ?
+                """, (telegram_id,))
+                
+                count = await cursor.fetchone()
+                return count[0] if count else 0
+                
+        except Exception as e:
+            logger.error(f"Ошибка получения количества слов: {e}")
+            return 0

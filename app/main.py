@@ -158,15 +158,22 @@ async def on_dictionary(m: Message):
             await m.answer("😔 Сначала запусти бота командой /start")
             return
         
-        words = await db.get_user_words(m.from_user.id, limit=10)
+        words = await db.get_user_words(m.from_user.id, limit=20)
         if not words:
             await m.answer("📚 Твой словарь пуст. Начни изучать слова!")
             return
         
-        words_text = "📚 <b>Твой словарь:</b>\n\n"
+        # Получаем общее количество слов
+        total_words = await db.get_user_words_count(m.from_user.id)
+        
+        words_text = f"📚 <b>Твой словарь:</b> ({len(words)} из {total_words})\n\n"
         for i, word in enumerate(words, 1):
             words_text += (f"{i}. <b>{word['word']}</b> — "
                           f"{word['translation']}\n")
+        
+        # Если слов больше 20, добавляем информацию
+        if total_words > 20:
+            words_text += f"\n... и ещё {total_words - 20} слов"
         
         await m.answer(words_text)
     except Exception as e:
