@@ -160,10 +160,11 @@ async def on_dictionary(m: Message):
         
         words = await db.get_user_words(m.from_user.id, limit=10)
         if not words:
-            await m.answer("��📚 Твой словарь пуст. Начни изучать слова!")
+            await m.answer("
+            📚 Твой словарь пуст. Начни изучать слова!")
             return
         
-        words_text = "��📚 <b>Твой словарь:</b>\n\n"
+        words_text = "📚 <b>Твой словарь:</b>\n\n"
         for i, word in enumerate(words, 1):
             words_text += (f"{i}. <b>{word['word']}</b> — "
                           f"{word['translation']}\n")
@@ -300,6 +301,7 @@ async def on_pronounce(c: CallbackQuery):
                 .strip())
         
         # Ищем слово заново для получения озвучки
+        logger.info(f"Ищем озвучку для слова: '{word}'")
         words = await skyeng.search_words(word)
         if not words:
             await c.answer("😔 Озвучка не найдена!")
@@ -313,6 +315,7 @@ async def on_pronounce(c: CallbackQuery):
         
         meaning = meanings[0]
         sound_url = meaning.get("soundUrl")
+        logger.info(f"Найден soundUrl: {sound_url}")
         
         if sound_url:
             try:
