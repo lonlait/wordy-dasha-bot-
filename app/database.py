@@ -135,8 +135,8 @@ class Database:
                 cursor = await db.execute(
                     "INSERT INTO words (word, translation, transcription, examples) VALUES (?, ?, ?, ?)",
                     (
-                        meaning.get('word', meaning.get('text', '')),
-                        meaning.get('translation', {}).get('text', ''),
+                        meaning.get('word', ''),  # Английское слово
+                        meaning.get('translation', {}).get('text', ''),  # Русский перевод
                         meaning.get('transcription', ''),
                         str(meaning.get('examples', []))
                     )

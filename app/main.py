@@ -506,8 +506,12 @@ async def on_quiz_answer(c: CallbackQuery):
         await c.answer("�� Ошибка при обработке ответа!")
 
 # Обработчик кнопки "Следующий раунд"
-@dp.callback_query(F.data == "quiz_next")
+@dp.callback_query()
 async def on_quiz_next(c: CallbackQuery):
+    logger.info(f"Получен callback_query с data: '{c.data}'")
+    if c.data != "quiz_next":
+        return
+    
     logger.info("=== ОБРАБОТЧИК QUIZ_NEXT ВЫЗВАН ===")
     try:
         logger.info(f"Получен запрос на следующий раунд квиза от пользователя {c.from_user.id}")
